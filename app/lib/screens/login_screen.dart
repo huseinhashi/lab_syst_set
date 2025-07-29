@@ -1,40 +1,38 @@
+// lib/screens/auth/login_screen.dart (Updated for Lab System)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:car_wash/providers/auth_provider.dart';
+import 'package:lab_system/providers/auth_provider.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.register(
-        _nameController.text.trim(),
-        _phoneController.text.trim(),
+      final success = await authProvider.login(
+        _emailController.text.trim(),
         _passwordController.text,
       );
 
       if (success && mounted) {
-        Navigator.pushReplacementNamed(context, '/customer');
+        Navigator.pushReplacementNamed(context, '/dashboard');
       }
     }
   }
@@ -44,11 +42,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Register'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -59,55 +52,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 // Logo or App Name
                 const Icon(
-                  Icons.local_car_wash,
+                  Icons.science,
                   size: 80,
                   color: Colors.blue,
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Create Account',
+                  'Lab System',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  'IoT Management Portal',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
                 const SizedBox(height: 40),
 
-                // Registration Form
+                // Login Form
                 Form(
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Name input
+                      // Email input
                       TextFormField(
-                        controller: _nameController,
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
                         decoration: const InputDecoration(
-                          labelText: 'Full Name',
-                          prefixIcon: Icon(Icons.person),
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email),
                           border: OutlineInputBorder(),
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter your name';
+                            return 'Please enter your email';
                           }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Phone input
-                      TextFormField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(
-                          labelText: 'Phone Number',
-                          prefixIcon: Icon(Icons.phone),
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your phone number';
+                          if (!value.contains('@')) {
+                            return 'Please enter a valid email';
                           }
                           return null;
                         },
@@ -137,10 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter a password';
-                          }
-                          if (value.length < 6) {
-                            return 'Password must be at least 6 characters';
+                            return 'Please enter your password';
                           }
                           return null;
                         },
@@ -173,12 +158,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
 
-                      // Register button
+                      // Login button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: authProvider.isLoading ? null : _register,
+                          onPressed: authProvider.isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
@@ -186,20 +171,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: authProvider.isLoading
                               ? const CircularProgressIndicator(
                                   color: Colors.white)
-                              : const Text('Register',
+                              : const Text('Login',
                                   style: TextStyle(fontSize: 16)),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Login link
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacementNamed(context, '/login');
-                        },
-                        child: const Text(
-                          'Already have an account? Login',
-                          style: TextStyle(color: Colors.blue),
                         ),
                       ),
                     ],

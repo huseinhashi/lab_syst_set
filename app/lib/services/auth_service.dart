@@ -1,7 +1,6 @@
-// lib/services/auth_service.dart
+// lib/services/auth_service.dart (Updated for Lab System)
 import 'package:flutter/foundation.dart';
-import 'package:car_wash/models/user.dart';
-import 'package:car_wash/services/api_client.dart';
+import 'package:lab_system/services/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -12,12 +11,12 @@ class AuthService {
   // Auth state
   bool _isAuthenticated = false;
   String? _token;
-  User? _user;
+  Map<String, dynamic>? _user;
 
   // Getters
   bool get isAuthenticated => _isAuthenticated;
   String? get token => _token;
-  User? get user => _user;
+  Map<String, dynamic>? get user => _user;
 
   // Auth state notifier
   final ValueNotifier<bool> authStateChanges = ValueNotifier<bool>(false);
@@ -39,9 +38,8 @@ class AuthService {
 
       if (tokenStr != null && userStr != null) {
         _token = tokenStr;
-        // Add Bearer prefix when loading from storage
-        _apiClient.setToken('Bearer $tokenStr');
-        _user = User.fromJson(jsonDecode(userStr));
+        _apiClient.setToken(tokenStr);
+        _user = jsonDecode(userStr);
         _isAuthenticated = true;
         authStateChanges.value = true;
       }
@@ -50,14 +48,12 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> register(
-      String name, String phone, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await _apiClient.request(
       method: 'POST',
-      path: '/auth/register',
+      path: '/auth/login',
       data: {
-        'name': name,
-        'phone': phone,
+        'email': email,
         'password': password,
       },
     );
@@ -65,31 +61,8 @@ class AuthService {
     if (response['success'] && response['data'] != null) {
       final userData = response['data']['user'];
       final token = response['data']['token'];
-      final user = User.fromJson(userData);
 
-      await _handleSuccessfulAuth(token, user);
-    }
-
-    return response;
-  }
-
-  Future<Map<String, dynamic>> loginCustomer(
-      String phone, String password) async {
-    final response = await _apiClient.request(
-      method: 'POST',
-      path: '/auth/login/customer',
-      data: {
-        'phone': phone,
-        'password': password,
-      },
-    );
-
-    if (response['success'] && response['data'] != null) {
-      final userData = response['data']['user'];
-      final token = response['data']['token'];
-      final user = User.fromJson(userData);
-
-      await _handleSuccessfulAuth(token, user);
+      await _handleSuccessfulAuth(token, userData);
     }
 
     return response;
@@ -103,57 +76,12 @@ class AuthService {
     };
   }
 
-  Future<Map<String, dynamic>> updateProfile({
-    String? name,
-    String? phone,
-    String? currentPassword,
-    String? newPassword,
-  }) async {
-    try {
-      final data = <String, dynamic>{};
-
-      if (name != null) data['name'] = name;
-      if (phone != null) data['phone'] = phone;
-      if (currentPassword != null) data['currentPassword'] = currentPassword;
-      if (newPassword != null) data['newPassword'] = newPassword;
-
-      final response = await _apiClient.request(
-        method: 'PATCH',
-        path: '/auth/update-profile',
-        data: data,
-      );
-
-      if (response['success'] && response['data'] != null) {
-        try {
-          _user = User.fromJson(response['data']);
-          await _saveUserToStorage();
-          authStateChanges.value = true;
-        } catch (e) {
-          debugPrint('Error parsing user data: $e');
-          return {
-            'success': false,
-            'message': 'Error updating profile',
-          };
-        }
-      }
-
-      return response;
-    } catch (e) {
-      debugPrint('Error updating profile: $e');
-      return {
-        'success': false,
-        'message': 'Error updating profile',
-      };
-    }
-  }
-
-  Future<void> _handleSuccessfulAuth(String token, User user) async {
+  Future<void> _handleSuccessfulAuth(String token, Map<String, dynamic> user) async {
     _token = token;
     _user = user;
     _isAuthenticated = true;
 
-    // Set token with Bearer prefix
-    _apiClient.setToken('Bearer $token');
+    _apiClient.setToken(token);
 
     await _saveToStorage();
     authStateChanges.value = true;
@@ -162,18 +90,7 @@ class AuthService {
   Future<void> _saveToStorage() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', _token!);
-    await prefs.setString('user', jsonEncode(_user!.toJson()));
-  }
-
-  Future<void> _saveUserToStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user', jsonEncode(_user!.toJson()));
-  }
-
-  Future<void> updateUser(User user) async {
-    _user = user;
-    await _saveUserToStorage();
-    authStateChanges.value = true;
+    await prefs.setString('user', jsonEncode(_user!));
   }
 
   Future<void> _clearAuth() async {

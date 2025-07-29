@@ -149,6 +149,15 @@ export const createPrayerTime = async (req, res, next) => {
   try {
     const { name, hour, minute, duration } = req.body;
 
+    // Check if there are already 5 prayer times
+    const prayerCount = await PrayerTime.countDocuments();
+    if (prayerCount >= 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot create more than 5 prayer times",
+      });
+    }
+
     // Validate input
     if (!name || hour === undefined || minute === undefined || duration === undefined) {
       return res.status(400).json({

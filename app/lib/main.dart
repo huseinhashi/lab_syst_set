@@ -1,11 +1,9 @@
-// lib/main.dart (Updated)
+// lib/main.dart (Updated for Lab System)
 import 'package:flutter/material.dart';
-import 'package:car_wash/screens/auth/login_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:car_wash/providers/auth_provider.dart';
-import 'package:car_wash/screens/splash_screen.dart';
-import 'package:car_wash/screens/customer/customer_dashboard.dart';
-import 'package:car_wash/screens/auth/register_screen.dart';
+import 'package:lab_system/providers/auth_provider.dart';
+import 'package:lab_system/screens/login_screen.dart';
+import 'package:lab_system/screens/dashboard_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +20,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
       child: MaterialApp(
-        title: 'Car Wash',
+        title: 'Lab System',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
@@ -30,18 +28,9 @@ class MyApp extends StatelessWidget {
         ),
         routes: {
           '/login': (context) => const LoginScreen(),
-          '/register': (context) => const RegisterScreen(),
-          '/customer': (context) => const CustomerDashboard(),
+          '/dashboard': (context) => const DashboardScreen(),
         },
-        initialRoute: '/',
-        onGenerateRoute: (settings) {
-          if (settings.name == '/') {
-            return MaterialPageRoute(
-              builder: (_) => const SplashScreen(),
-            );
-          }
-          return null;
-        },
+        initialRoute: '/login',
       ),
     );
   }

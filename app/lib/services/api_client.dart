@@ -1,4 +1,4 @@
-// lib/services/api_client.dart
+// lib/services/api_client.dart (Updated for Lab System)
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -11,9 +11,8 @@ class ApiClient {
 
   ApiClient._internal() {
     _dio = Dio(BaseOptions(
-      baseUrl: 'http://localhost:6767/api', // Updated with /api prefix
+      baseUrl: 'http://localhost:3000', // Lab system backend
       validateStatus: (status) => true, // Handle all status codes ourselves
-      // Remove timeouts to allow long-running requests
     ));
 
     // Add logging interceptor in debug mode
@@ -26,10 +25,8 @@ class ApiClient {
   }
 
   void setToken(String token) {
-    // Ensure headers are initialized
     _dio.options.headers ??= {};
-    // Set with Bearer prefix
-    _dio.options.headers!['Authorization'] = token;
+    _dio.options.headers!['Authorization'] = 'Bearer $token';
   }
 
   void clearToken() {
@@ -51,16 +48,13 @@ class ApiClient {
           response = await _dio.get(path, queryParameters: queryParameters);
           break;
         case 'POST':
-          response = await _dio.post(path,
-              data: data, queryParameters: queryParameters);
+          response = await _dio.post(path, data: data, queryParameters: queryParameters);
           break;
-        case 'PATCH':
-          response = await _dio.patch(path,
-              data: data, queryParameters: queryParameters);
+        case 'PUT':
+          response = await _dio.put(path, data: data, queryParameters: queryParameters);
           break;
         case 'DELETE':
-          response = await _dio.delete(path,
-              data: data, queryParameters: queryParameters);
+          response = await _dio.delete(path, data: data, queryParameters: queryParameters);
           break;
         default:
           throw Exception('Unsupported method: $method');
@@ -76,20 +70,9 @@ class ApiClient {
       } else {
         String errorMessage = 'An error occurred';
 
-        // Check if response is HTML
-        if (response.headers
-                .value(Headers.contentTypeHeader)
-                ?.contains('text/html') ==
-            true) {
-          errorMessage =
-              'Server returned unexpected response. Please try again.';
-        } else if (response.data is Map) {
-          // Check for both 'message' and 'error' fields
-          errorMessage = response.data['message'] ??
-              response.data['error'] ??
-              errorMessage;
+        if (response.data is Map) {
+          errorMessage = response.data['message'] ?? errorMessage;
         } else if (response.data is String) {
-          // If response is plain string, use it
           errorMessage = response.data.toString();
         }
 
@@ -102,12 +85,8 @@ class ApiClient {
       String errorMessage;
 
       if (e.response != null) {
-        // Try to extract error message from response
         if (e.response!.data is Map) {
-          // Check for both 'message' and 'error' fields
-          errorMessage = e.response!.data['message'] ??
-              e.response!.data['error'] ??
-              _getErrorMessage(e);
+          errorMessage = e.response!.data['message'] ?? _getErrorMessage(e);
         } else if (e.response!.data is String) {
           errorMessage = e.response!.data;
         } else {
@@ -138,17 +117,7 @@ class ApiClient {
       case DioExceptionType.connectionError:
         return 'Unable to connect to server. Please check the server URL or try again later.';
       case DioExceptionType.badResponse:
-        final response = error.response;
-        // Handle HTML responses from server
-        if (response != null &&
-            response.headers
-                    .value(Headers.contentTypeHeader)
-                    ?.contains('text/html') ==
-                true) {
-          return 'Server error occurred. Please contact support.';
-        }
-        // Handle API error responses
-        final statusCode = response?.statusCode;
+        final statusCode = error.response?.statusCode;
         if (statusCode == 401) {
           return 'Authentication failed. Please log in again.';
         }
@@ -156,7 +125,7 @@ class ApiClient {
           return 'Permission denied.';
         }
         if (statusCode == 404) {
-          return 'Server resource not found. Check server configuration.';
+          return 'Resource not found.';
         }
         return 'Server error occurred (${statusCode ?? 'unknown'})';
       case DioExceptionType.cancel:

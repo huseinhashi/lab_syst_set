@@ -284,27 +284,9 @@ export const DashboardLayout = ({ children }) => {
                   
                   <DropdownMenuSeparator className="bg-slate-200/50 dark:bg-slate-700/50" />
                   
-                  <DropdownMenuItem
-                    onClick={() => navigate("/admin/profile")}
-                    className="cursor-pointer p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg mx-2"
-                  >
-                    <User className="mr-3 h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-slate-700 dark:text-slate-300">My Profile</span>
-                  </DropdownMenuItem>
+               
                   
-                  <DropdownMenuItem
-                    onClick={() => navigate("/admin/settings")}
-                    className="cursor-pointer p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg mx-2"
-                  >
-                    <Settings className="mr-3 h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-slate-700 dark:text-slate-300">Settings</span>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem className="cursor-pointer p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg mx-2">
-                    <HelpCircle className="mr-3 h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-slate-700 dark:text-slate-300">Help & Support</span>
-                  </DropdownMenuItem>
-                  
+              
                   <DropdownMenuSeparator className="bg-slate-200/50 dark:bg-slate-700/50" />
                   
                   <DropdownMenuItem

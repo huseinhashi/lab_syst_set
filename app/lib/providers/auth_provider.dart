@@ -1,19 +1,16 @@
-// lib/providers/auth_provider.dart
+// lib/providers/auth_provider.dart (Updated for Lab System)
 import 'package:flutter/material.dart';
-import 'package:car_wash/models/user.dart';
-import 'package:car_wash/services/auth_service.dart';
-import 'package:car_wash/services/balance_service.dart';
+import 'package:lab_system/services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
-  final BalanceService _balanceService = BalanceService();
   bool _isLoading = false;
   String? _error;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _authService.isAuthenticated;
-  User? get user => _authService.user;
+  Map<String, dynamic>? get user => _authService.user;
   String? get token => _authService.token;
 
   AuthProvider() {
@@ -36,25 +33,11 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String name, String phone, String password) async {
+  Future<bool> login(String email, String password) async {
     _setLoading(true);
     _clearError();
 
-    final response = await _authService.register(name, phone, password);
-
-    if (!response['success']) {
-      _setError(response['message']);
-    }
-
-    _setLoading(false);
-    return response['success'];
-  }
-
-  Future<bool> login(String phone, String password) async {
-    _setLoading(true);
-    _clearError();
-
-    final response = await _authService.loginCustomer(phone, password);
+    final response = await _authService.login(email, password);
 
     if (!response['success']) {
       _setError(response['message']);
@@ -76,73 +59,6 @@ class AuthProvider extends ChangeNotifier {
 
     _setLoading(false);
     return response['success'];
-  }
-
-  Future<bool> updateProfile({
-    String? name,
-    String? phone,
-    String? currentPassword,
-    String? newPassword,
-  }) async {
-    try {
-      _setLoading(true);
-      _clearError();
-
-      final response = await _authService.updateProfile(
-        name: name,
-        phone: phone,
-        currentPassword: currentPassword,
-        newPassword: newPassword,
-      );
-
-      if (!response['success']) {
-        _setError(response['message'] ?? 'Error updating profile');
-      }
-
-      return response['success'];
-    } catch (e) {
-      _setError('An error occurred while updating profile');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> refreshBalance() async {
-    if (!isAuthenticated) return;
-
-    try {
-      final response = await _balanceService.getUserBalance();
-      if (response['success'] && response['data'] != null) {
-        final balance = response['data']['balance'] as int;
-        // Update user balance in auth service
-        final currentUser = _authService.user;
-        if (currentUser != null) {
-          final updatedUser = User(
-            id: currentUser.id,
-            name: currentUser.name,
-            phone: currentUser.phone,
-            balance: balance,
-          );
-          await _authService.updateUser(updatedUser);
-          notifyListeners();
-        }
-      }
-    } catch (e) {
-      debugPrint('Error refreshing balance: $e');
-    }
-  }
-
-  Future<void> checkAuth() async {
-    _setLoading(true);
-    _clearError();
-
-    await _initialize();
-
-    // Delay state update until after build completes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setLoading(false);
-    });
   }
 
   void _setLoading(bool loading) {
