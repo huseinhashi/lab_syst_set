@@ -11,6 +11,9 @@ import {
   getPrayerTime,
   updatePrayerTime,
   deletePrayerTime,
+  // Working Hours Management
+  getWorkingHours,
+  updateWorkingHours,
 } from "../controllers/management.controller.js";
 import { isAuthenticated, isAdmin } from "../middlewares/auth.middleware.js";
 
@@ -32,5 +35,9 @@ router.post("/prayer-times", isAdmin, createPrayerTime);
 router.get("/prayer-times/:id", getPrayerTime);
 router.put("/prayer-times/:id", isAdmin, updatePrayerTime);
 router.delete("/prayer-times/:id", isAdmin, deletePrayerTime);
+
+// Working Hours Management Routes (Admin only)
+router.get("/working-hours", getWorkingHours);
+router.post("/working-hours", isAdmin, updateWorkingHours);
 
 export default router; 

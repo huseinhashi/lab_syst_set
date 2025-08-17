@@ -1,17 +1,18 @@
 import SensorData from "../models/sensorData.model.js";
 import RelayState from "../models/relayState.model.js";
 import PrayerTime from "../models/prayerTime.model.js";
+import WorkingHours from "../models/workingHours.model.js";
 
 // Send sensor data from ESP32
 export const sendSensorData = async (req, res, next) => {
   try {
-    const { temperature, humidity, lightLevel } = req.body;
+    const { temperature, humidity, lightLevel, flameStatus } = req.body;
 
     // Validate required fields
-    if (temperature === undefined || humidity === undefined || lightLevel === undefined) {
+    if (temperature === undefined || humidity === undefined || lightLevel === undefined || flameStatus === undefined) {
       return res.status(400).json({
         success: false,
-        message: "Temperature, humidity, and lightLevel are required",
+        message: "Temperature, humidity, lightLevel, and flameStatus are required",
       });
     }
 
@@ -23,6 +24,7 @@ export const sendSensorData = async (req, res, next) => {
       temperature,
       humidity,
       lightLevel,
+      flameStatus,
     });
 
     res.status(200).json({
@@ -111,6 +113,37 @@ export const getPrayerTimes = async (req, res, next) => {
       success: true,
       data: prayerTimes,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get working hours for ESP32
+export const getWorkingHours = async (req, res, next) => {
+  try {
+    const workingHours = await WorkingHours.findOne({ isActive: true }).sort({ createdAt: -1 });
+
+    // If no working hours exist, create default ones (8:00 AM to 5:00 PM)
+    if (!workingHours) {
+      const defaultWorkingHours = await WorkingHours.create({
+        startHour: 8,
+        startMinute: 0,
+        endHour: 17,
+        endMinute: 0,
+        isActive: true,
+        name: "Working Hours"
+      });
+
+      res.status(200).json({
+        success: true,
+        data: defaultWorkingHours,
+      });
+    } else {
+      res.status(200).json({
+        success: true,
+        data: workingHours,
+      });
+    }
   } catch (error) {
     next(error);
   }

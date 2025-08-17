@@ -290,7 +290,7 @@ lab-system/
 │   ├── package.json
 │   └── public/
 └── esp32-firmware/
-    └── lab_system_simple.ino
+    └── lab_simple.ino
 ```
 
 ## Implementation Steps

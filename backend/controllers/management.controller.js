@@ -1,5 +1,6 @@
 import RelayState from "../models/relayState.model.js";
 import PrayerTime from "../models/prayerTime.model.js";
+import WorkingHours from "../models/workingHours.model.js";
 
 // Get current relay states
 export const getRelayStates = async (req, res, next) => {
@@ -267,6 +268,87 @@ export const deletePrayerTime = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Prayer time deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Working Hours Management
+export const getWorkingHours = async (req, res, next) => {
+  try {
+    const workingHours = await WorkingHours.findOne({ isActive: true }).sort({ createdAt: -1 });
+
+    // If no working hours exist, create default ones (8:00 AM to 5:00 PM)
+    if (!workingHours) {
+      const defaultWorkingHours = await WorkingHours.create({
+        startHour: 8,
+        startMinute: 0,
+        endHour: 17,
+        endMinute: 0,
+        isActive: true,
+        name: "Working Hours"
+      });
+
+      res.status(200).json({
+        success: true,
+        data: defaultWorkingHours,
+      });
+    } else {
+      res.status(200).json({
+        success: true,
+        data: workingHours,
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateWorkingHours = async (req, res, next) => {
+  try {
+    const { name, startHour, startMinute, endHour, endMinute, isActive } = req.body;
+
+    // Validate input
+    if (startHour === undefined || startMinute === undefined || endHour === undefined || endMinute === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Start and end times are required",
+      });
+    }
+
+    // Validate time ranges
+    if (startHour < 0 || startHour > 23 || endHour < 0 || endHour > 23) {
+      return res.status(400).json({
+        success: false,
+        message: "Hours must be between 0 and 23",
+      });
+    }
+
+    if (startMinute < 0 || startMinute > 59 || endMinute < 0 || endMinute > 59) {
+      return res.status(400).json({
+        success: false,
+        message: "Minutes must be between 0 and 59",
+      });
+    }
+
+    // Deactivate all existing working hours
+    await WorkingHours.updateMany({}, { isActive: false });
+
+    // Create new working hours
+    const workingHours = await WorkingHours.create({
+      name: name || "Working Hours",
+      startHour,
+      startMinute,
+      endHour,
+      endMinute,
+      isActive: isActive !== undefined ? isActive : true,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Working hours updated successfully",
+      data: workingHours,
     });
   } catch (error) {
     next(error);

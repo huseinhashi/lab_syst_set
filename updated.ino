@@ -7,11 +7,11 @@
 #include <ArduinoJson.h>
 
 // WiFi credentials
-const char* ssid = "Tahqiiq System";
-const char* password = "614444259";
+const char* ssid = "Test";
+const char* password = "12345678";
 
 // Backend server details
-const char* backendUrl = "http://192.168.8.61:3000"; // Update with your backend IP
+const char* backendUrl = "http://10.197.221.198:3000/api"; // Update with your backend IP
 const int backendPort = 3000;
 
 // Pin definitions
@@ -39,22 +39,11 @@ struct PrayerTime {
   int duration;
 };
 
-// Working hours structure
-struct WorkingHours {
-  String name;
-  int startHour;
-  int startMinute;
-  int endHour;
-  int endMinute;
-  bool isActive;
-};
-
 // Global variables
 bool isInSalah = false;
 String currentSalah = "";
 PrayerTime prayerTimes[10]; // Store prayer times from backend
 int prayerTimeCount = 0;
-WorkingHours workingHours; // Store working hours from backend
 
 // Relay states
 bool relay1State = false;
@@ -68,21 +57,13 @@ int beepCount = 0;
 bool beeping = false;
 bool buzzerState = false;
 
-// Shutdown tracking (to prevent repeated shutdowns)
-bool lastWorkingHoursShutdown = false;  // Track if we already shut down for working hours end
-int lastWorkingHoursEndDay = 0;         // Track the day we last shut down for working hours
-bool lastPrayerShutdown = false;        // Track if we already shut down for current prayer
-String lastPrayerShutdownName = "";     // Track which prayer we last shut down for
-
 // Timers
 unsigned long lastSensorSend = 0;
 unsigned long lastRelayCheck = 0;
 unsigned long lastPrayerCheck = 0;
-unsigned long lastWorkingHoursCheck = 0;
 const unsigned long SENSOR_INTERVAL = 5000;    // Send sensor data every 5 seconds
 const unsigned long RELAY_INTERVAL = 3000;      // Check relay states every 3 seconds
 const unsigned long PRAYER_INTERVAL = 60000;    // Check prayer times every minute
-const unsigned long WORKING_HOURS_INTERVAL = 60000; // Check working hours every 1 minute
 
 void setupTime() {
   // Set timezone to Somalia (UTC+3)
@@ -123,8 +104,6 @@ void sendSensorData() {
   float t = dht.readTemperature();
   int ldrValue = digitalRead(LDR_PIN);
   int lightLevel = (ldrValue == HIGH) ? 0 : 1; // 0 = night, 1 = day
-  int flameValue = digitalRead(flame);
-  int flameStatus = (flameValue == HIGH) ? 0 : 1; // 0 = no flame, 1 = flame
 
   if (isnan(h) || isnan(t)) {
     Serial.println("Failed to read sensor data");
@@ -139,8 +118,7 @@ void sendSensorData() {
   // Create JSON payload
   String jsonPayload = "{\"temperature\":" + String(t, 1) + 
                       ",\"humidity\":" + String(h, 1) + 
-                      ",\"lightLevel\":" + String(lightLevel) + 
-                      ",\"flameStatus\":" + String(flameStatus) + "}";
+                      ",\"lightLevel\":" + String(lightLevel) + "}";
 
   int httpResponseCode = http.POST(jsonPayload);
   
@@ -186,8 +164,8 @@ void getRelayStates() {
         bool newRelay3 = data["relay3"] | false;
         bool newRelay4 = data["relay4"] | false;
         
-        // Only update if not in prayer time and within working hours
-        if (!isInSalah && isWithinWorkingHours()) {
+        // Only update if not in prayer time
+        if (!isInSalah) {
           if (newRelay1 != relay1State) {
             relay1State = newRelay1;
             digitalWrite(comp1, relay1State ? LOW : HIGH);
@@ -211,8 +189,6 @@ void getRelayStates() {
             digitalWrite(comp4, relay4State ? LOW : HIGH);
             Serial.println("Relay 4: " + String(relay4State ? "ON" : "OFF"));
           }
-        } else {
-          Serial.println("Relay changes blocked - Prayer time or outside working hours");
         }
       }
     } else {
@@ -273,58 +249,6 @@ void getPrayerTimes() {
   http.end();
 }
 
-// Get working hours from backend
-void getWorkingHours() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected");
-    return;
-  }
-
-  HTTPClient http;
-  String url = String(backendUrl) + "/esp32/working-hours";
-  http.begin(url);
-  
-  int httpResponseCode = http.GET();
-  
-  if (httpResponseCode > 0) {
-    String payload = http.getString();
-    Serial.println("Working hours response: " + payload);
-    
-    // Parse JSON response
-    DynamicJsonDocument doc(1024);
-    DeserializationError error = deserializeJson(doc, payload);
-    
-    if (!error) {
-      if (doc["success"] == true && doc.containsKey("data")) {
-        JsonObject data = doc["data"];
-        
-        workingHours.name = data["name"].as<String>();
-        workingHours.startHour = data["startHour"] | 8;
-        workingHours.startMinute = data["startMinute"] | 0;
-        workingHours.endHour = data["endHour"] | 17;
-        workingHours.endMinute = data["endMinute"] | 0;
-        workingHours.isActive = data["isActive"] | true;
-        
-        Serial.println("Updated working hours: " + workingHours.name);
-        Serial.print("Start: ");
-        Serial.print(workingHours.startHour);
-        Serial.print(":");
-        Serial.println(workingHours.startMinute);
-        Serial.print("End: ");
-        Serial.print(workingHours.endHour);
-        Serial.print(":");
-        Serial.println(workingHours.endMinute);
-      }
-    } else {
-      Serial.println("JSON parsing failed for working hours");
-    }
-  } else {
-    Serial.println("Error getting working hours: " + http.errorToString(httpResponseCode));
-  }
-  
-  http.end();
-}
-
 bool checkSalahNow(int hour, int minute, int duration) {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) return false;
@@ -333,72 +257,6 @@ bool checkSalahNow(int hour, int minute, int duration) {
   int salahStart = hour * 60 + minute;
   
   return (nowMinutes >= salahStart && nowMinutes < salahStart + duration);
-}
-
-bool isWithinWorkingHours() {
-  if (!workingHours.isActive) return true; // If working hours are disabled, always allow
-  
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return false;
-  
-  int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-  int startMinutes = workingHours.startHour * 60 + workingHours.startMinute;
-  int endMinutes = workingHours.endHour * 60 + workingHours.endMinute;
-  
-  return (nowMinutes >= startMinutes && nowMinutes <= endMinutes);
-}
-
-// Enhanced function to handle working hours start and end times
-void handleWorkingHoursEnd() {
-  if (!workingHours.isActive) return; // If working hours are disabled, do nothing
-  
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return;
-  
-  int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-  int startMinutes = workingHours.startHour * 60 + workingHours.startMinute;
-  int endMinutes = workingHours.endHour * 60 + workingHours.endMinute;
-  
-  // Check if we've reached or passed the end time (within 5 minutes tolerance)
-  if (nowMinutes >= endMinutes && nowMinutes <= endMinutes + 5) {
-    // Check if relays are still ON (to avoid repeated shutdown)
-    if (relay1State || relay2State || relay3State || relay4State) {
-      // AUTOMATIC SHUTDOWN: Shut down all relays at end time
-      digitalWrite(comp1, HIGH);  // Relay 1 OFF
-      digitalWrite(comp2, HIGH);  // Relay 2 OFF
-      digitalWrite(comp3, HIGH);  // Relay 3 OFF
-      digitalWrite(comp4, HIGH);  // Relay 4 OFF
-      
-      // Update relay states
-      relay1State = false;
-      relay2State = false;
-      relay3State = false;
-      relay4State = false;
-      
-      // Visual indication
-      digitalWrite(red, HIGH);
-      digitalWrite(green, LOW);
-      digitalWrite(buzzer, HIGH);
-      delay(2000); // Buzzer for 2 seconds
-      digitalWrite(buzzer, LOW);
-      
-      Serial.println("Working hours ended - All relays automatically turned OFF");
-      
-      // Update LCD
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Working Hours");
-      lcd.setCursor(0, 1);
-      lcd.print("Ended - Relays OFF");
-      delay(3000); // Show message for 3 seconds
-    }
-  }
-  
-  // Check if we've just started working hours (within 5 minutes tolerance)
-  if (nowMinutes >= startMinutes && nowMinutes <= startMinutes + 5) {
-    // Optional: You can add logic here if you want to do something when working hours start
-    Serial.println("Working hours started");
-  }
 }
 
 void printTimeStatus() {
@@ -411,17 +269,6 @@ void printTimeStatus() {
 
     Serial.print("Salah Status: ");
     Serial.println(isInSalah ? currentSalah : "No Salah");
-
-    Serial.print("Working Hours Status: ");
-    Serial.println(isWithinWorkingHours() ? "Within Working Hours" : "Outside Working Hours");
-    
-    if (workingHours.isActive) {
-      Serial.print("Working Hours End: ");
-      Serial.print(workingHours.endHour);
-      Serial.print(":");
-      if (workingHours.endMinute < 10) Serial.print("0");
-      Serial.println(workingHours.endMinute);
-    }
 
     int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
     for (int i = 0; i < prayerTimeCount; i++) {
@@ -475,20 +322,15 @@ void handleSalahTime() {
     isInSalah = true;
     currentSalah = salahName;
     
-    // AUTOMATIC SHUTDOWN: Turn off all relays during prayer
-    if (relay1State || relay2State || relay3State || relay4State) {
-      digitalWrite(comp1, HIGH);  // Relay 1 OFF
-      digitalWrite(comp2, HIGH);  // Relay 2 OFF
-      digitalWrite(comp3, HIGH);  // Relay 3 OFF
-      digitalWrite(comp4, HIGH);  // Relay 4 OFF
-      
-      relay1State = false;
-      relay2State = false;
-      relay3State = false;
-      relay4State = false;
-      
-      Serial.println("Prayer time started - All relays automatically turned OFF");
-    }
+    // Turn off all relays during prayer
+    digitalWrite(comp1, HIGH);
+    digitalWrite(comp2, HIGH);
+    digitalWrite(comp3, HIGH);
+    digitalWrite(comp4, HIGH);
+    relay1State = false;
+    relay2State = false;
+    relay3State = false;
+    relay4State = false;
     
     digitalWrite(red, HIGH);
     digitalWrite(green, LOW);
@@ -519,128 +361,6 @@ void handleSalahTime() {
   }
 
   printTimeStatus();
-}
-
-// Continuous monitoring function to handle automatic shutdowns (runs every loop)
-void continuousTimeMonitoring() {
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return;
-  
-  int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-  int currentDay = timeinfo.tm_yday; // Day of year (0-365)
-  
-  // Check prayer times continuously (not just every minute)
-  bool salahActive = false;
-  String salahName = "";
-  
-  for (int i = 0; i < prayerTimeCount; i++) {
-    int salahStart = prayerTimes[i].hour * 60 + prayerTimes[i].minute;
-    int salahEnd = salahStart + prayerTimes[i].duration;
-    
-    if (nowMinutes >= salahStart && nowMinutes < salahEnd) {
-      salahActive = true;
-      salahName = prayerTimes[i].name;
-      break;
-    }
-  }
-  
-  // AUTOMATIC SHUTDOWN: If prayer time detected and not already in prayer
-  if (salahActive && !isInSalah) {
-    isInSalah = true;
-    currentSalah = salahName;
-    
-    // Only shut down if we haven't already shut down for this prayer
-    if (!lastPrayerShutdown || lastPrayerShutdownName != salahName) {
-      // Immediately shut down all relays
-      if (relay1State || relay2State || relay3State || relay4State) {
-        digitalWrite(comp1, HIGH);  // Relay 1 OFF
-        digitalWrite(comp2, HIGH);  // Relay 2 OFF
-        digitalWrite(comp3, HIGH);  // Relay 3 OFF
-        digitalWrite(comp4, HIGH);  // Relay 4 OFF
-        
-        relay1State = false;
-        relay2State = false;
-        relay3State = false;
-        relay4State = false;
-        
-        Serial.println("Prayer time detected - All relays automatically turned OFF");
-      }
-      
-      lastPrayerShutdown = true;
-      lastPrayerShutdownName = salahName;
-    }
-    
-    digitalWrite(red, HIGH);
-    digitalWrite(green, LOW);
-    
-    // Start beeping
-    beeping = true;
-    beepCount = 0;
-    lastBeepTime = millis();
-    buzzerState = false;
-    
-    Serial.print("Entered Salah Time: ");
-    Serial.println(currentSalah);
-  } else if (!salahActive && isInSalah) {
-    isInSalah = false;
-    currentSalah = "";
-    digitalWrite(red, LOW);
-    digitalWrite(green, HIGH);
-    digitalWrite(buzzer, LOW);
-    
-    // Reset prayer shutdown tracking when exiting prayer time
-    lastPrayerShutdown = false;
-    lastPrayerShutdownName = "";
-    
-    Serial.println("Exited Salah Time");
-  }
-  
-  // Check working hours end continuously
-  if (workingHours.isActive) {
-    int endMinutes = workingHours.endHour * 60 + workingHours.endMinute;
-    
-    // Reset working hours shutdown tracking at start of new day
-    if (currentDay != lastWorkingHoursEndDay) {
-      lastWorkingHoursShutdown = false;
-      lastWorkingHoursEndDay = currentDay;
-    }
-    
-    // AUTOMATIC SHUTDOWN: If working hours just ended (within 5 minutes tolerance)
-    if (nowMinutes >= endMinutes && nowMinutes <= endMinutes + 5) {
-      if (!lastWorkingHoursShutdown && (relay1State || relay2State || relay3State || relay4State)) {
-        // Shut down all relays
-        digitalWrite(comp1, HIGH);  // Relay 1 OFF
-        digitalWrite(comp2, HIGH);  // Relay 2 OFF
-        digitalWrite(comp3, HIGH);  // Relay 3 OFF
-        digitalWrite(comp4, HIGH);  // Relay 4 OFF
-        
-        relay1State = false;
-        relay2State = false;
-        relay3State = false;
-        relay4State = false;
-        
-        // Visual indication
-        digitalWrite(red, HIGH);
-        digitalWrite(green, LOW);
-        digitalWrite(buzzer, HIGH);
-        delay(2000); // Buzzer for 2 seconds
-        digitalWrite(buzzer, LOW);
-        
-        Serial.println("Working hours ended - All relays automatically turned OFF");
-        
-        // Update LCD
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Working Hours");
-        lcd.setCursor(0, 1);
-        lcd.print("Ended - Relays OFF");
-        delay(3000); // Show message for 3 seconds
-        
-        // Mark that we've shut down for working hours end today
-        lastWorkingHoursShutdown = true;
-      }
-    }
-  }
 }
 
 void updateLCD() {
@@ -692,7 +412,7 @@ void setup() {
   pinMode(red, OUTPUT);
   pinMode(green, OUTPUT);
   pinMode(LDR_PIN, INPUT);
-  pinMode(flame, INPUT); // Initialize flame sensor pin
+  pinMode(flame, INPUT);
 
   // Initialize relays to OFF (HIGH)
   digitalWrite(comp1, HIGH);
@@ -716,13 +436,13 @@ void setup() {
 
   // Get initial prayer times
   getPrayerTimes();
-  getWorkingHours(); // Get initial working hours
   
   Serial.println("System initialized successfully");
 }
 
 void loop() {
   unsigned long currentMillis = millis();
+  Serial.println(digitalRead(flame));
 
   // Send sensor data every 5 seconds
   if (currentMillis - lastSensorSend >= SENSOR_INTERVAL) {
@@ -743,18 +463,10 @@ void loop() {
     lastPrayerCheck = currentMillis;
   }
 
-  // Check working hours every 1 minute
-  if (currentMillis - lastWorkingHoursCheck >= WORKING_HOURS_INTERVAL) {
-    getWorkingHours();
-    handleWorkingHoursEnd(); // Check if working hours just ended
-    lastWorkingHoursCheck = currentMillis;
-  }
-
   // Update LCD and handle buzzer
   updateLCD();
   handleBuzzerBeep();
-  continuousTimeMonitoring(); // Run continuous monitoring
 
   // Small delay to prevent watchdog issues
   delay(100);
-} 
+}

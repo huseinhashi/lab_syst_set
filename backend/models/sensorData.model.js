@@ -19,6 +19,11 @@ const sensorDataSchema = new mongoose.Schema(
       required: [true, "Light level is required"],
       enum: [0, 1], // 0 = night, 1 = day
     },
+    flameStatus: {
+      type: Number,
+      required: [true, "Flame status is required"],
+      enum: [0, 1], // 0 = no flame, 1 = flame detected
+    },
   },
   { timestamps: true }
 );

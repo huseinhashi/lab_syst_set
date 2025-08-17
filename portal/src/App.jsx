@@ -9,6 +9,7 @@ import { DashboardLayout } from "@/components/layouts/DashboardLayout";
 import { Toaster } from "@/components/ui/toaster";
 import { UserManagementPage } from "@/pages/admin/UsersPage";
 import { PrayerTimesPage } from "@/pages/admin/PrayerTimesPage";
+import { WorkingHoursPage } from "@/pages/admin/WorkingHoursPage";
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
                     <Route index element={<AdminDashboard />} />
                     <Route path="users" element={<UserManagementPage />} />
                     <Route path="prayer-times" element={<PrayerTimesPage />} />
+                    <Route path="working-hours" element={<WorkingHoursPage />} />
                   </Routes>
                 </DashboardLayout>
               </ProtectedRoute>

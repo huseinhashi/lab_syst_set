@@ -68,6 +68,11 @@ export const DashboardLayout = ({ children }) => {
       icon: Clock,
       href: "/admin/prayer-times",
     },
+    {
+      title: "Working Hours",
+      icon: Clock,
+      href: "/admin/working-hours",
+    },
   ];
 
   const handleLogout = () => {
@@ -80,6 +85,7 @@ export const DashboardLayout = ({ children }) => {
     if (path === "/admin/" || path === "/admin") return "Lab System Dashboard";
     if (path.includes("/users")) return "User Management";
     if (path.includes("/prayer-times")) return "Prayer Times";
+    if (path.includes("/working-hours")) return "Working Hours";
     return "Dashboard";
   };
 

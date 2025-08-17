@@ -14,7 +14,8 @@ import {
   RefreshCw,
   Settings,
   Activity,
-  AlertCircle
+  AlertCircle,
+  Flame
 } from "lucide-react";
 import api from "@/lib/axios";
 
@@ -135,7 +136,17 @@ export const AdminDashboard = () => {
       : { icon: Moon, text: "Night", color: "text-blue-500" };
   };
 
+  const getFlameStatus = () => {
+    if (!sensorData || sensorData.flameStatus === undefined) {
+      return { icon: Flame, text: "Unknown", color: "text-gray-500" };
+    }
+    return sensorData.flameStatus === 1 
+      ? { icon: Flame, text: "Flame Detected", color: "text-red-500" }
+      : { icon: Flame, text: "No Flame", color: "text-green-500" };
+  };
+
   const lightStatus = getLightStatus();
+  const flameStatus = getFlameStatus();
 
   const renderSensorValue = (value, unit, fallback = "No Data") => {
     if (value === null || value === undefined) {
@@ -208,6 +219,21 @@ export const AdminDashboard = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Day/Night detection
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Flame Status</CardTitle>
+            <flameStatus.icon className={`h-4 w-4 ${flameStatus.color}`} />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${flameStatus.color}`}>
+              {sensorData ? flameStatus.text : "No Data"}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Flame detection
             </p>
           </CardContent>
         </Card>
