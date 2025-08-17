@@ -150,6 +150,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -161,20 +162,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color color,
   ) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        padding: const EdgeInsets.all(12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 32, color: color),
+            Icon(icon, size: 28, color: color),
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -186,31 +200,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isOn = _relayStates['relay$relayId'] ?? false;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        padding: const EdgeInsets.all(12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Relay $relayId',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(
-              isOn ? 'ON' : 'OFF',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isOn ? Colors.green : Colors.red,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isOn ? Colors.green.shade100 : Colors.red.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                isOn ? 'ON' : 'OFF',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isOn ? Colors.green.shade800 : Colors.red.shade800,
+                ),
               ),
             ),
             const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: _isRelayLoading ? null : () => _toggleRelay(relayId),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isOn ? Colors.red : Colors.green,
-                foregroundColor: Colors.white,
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isRelayLoading ? null : () => _toggleRelay(relayId),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isOn ? Colors.red : Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  isOn ? 'Turn OFF' : 'Turn ON',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
-              child: Text(isOn ? 'Turn OFF' : 'Turn ON'),
             ),
           ],
         ),
@@ -221,6 +256,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     if (!authProvider.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -232,6 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lab System Dashboard'),
+        elevation: 2,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -248,193 +286,277 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sensor Data Section
-                  const Text(
-                    'Sensor Data',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (_hasSensorError)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.shade200),
+          : RefreshIndicator(
+              onRefresh: _fetchData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sensor Data Section
+                    const Text(
+                      'Sensor Data',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.warning, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'No sensor data available. ESP32 may be offline.',
-                              style: TextStyle(color: Colors.orange),
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (_hasSensorError)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.warning, color: Colors.orange, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'No sensor data available. ESP32 may be offline.',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Responsive grid based on available width
+                          int crossAxisCount = 2;
+                          double childAspectRatio = 1.2;
+
+                          if (constraints.maxWidth > 600) {
+                            crossAxisCount = 3;
+                            childAspectRatio = 1.0;
+                          }
+
+                          return GridView.count(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisCount: crossAxisCount,
+                            childAspectRatio: childAspectRatio,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            children: [
+                              _buildSensorCard(
+                                'Temperature',
+                                '${_sensorData?['temperature']?.toString() ?? 'No Data'}°C',
+                                Icons.thermostat,
+                                Colors.red,
+                              ),
+                              _buildSensorCard(
+                                'Humidity',
+                                '${_sensorData?['humidity']?.toString() ?? 'No Data'}%',
+                                Icons.water_drop,
+                                Colors.blue,
+                              ),
+                              _buildSensorCard(
+                                'Light Status',
+                                _sensorData?['lightLevel'] == 1
+                                    ? 'Day'
+                                    : 'Night',
+                                _sensorData?['lightLevel'] == 1
+                                    ? Icons.wb_sunny
+                                    : Icons.nightlight,
+                                _sensorData?['lightLevel'] == 1
+                                    ? Colors.yellow
+                                    : Colors.indigo,
+                              ),
+                              _buildSensorCard(
+                                'Flame Status',
+                                _sensorData?['flameStatus'] == 1
+                                    ? 'Flame Detected'
+                                    : 'No Flame',
+                                Icons.local_fire_department,
+                                _sensorData?['flameStatus'] == 1
+                                    ? Colors.red
+                                    : Colors.green,
+                              ),
+                              _buildSensorCard(
+                                'System Status',
+                                _hasSensorError ? 'Offline' : 'Online',
+                                _hasSensorError
+                                    ? Icons.error
+                                    : Icons.check_circle,
+                                _hasSensorError ? Colors.red : Colors.green,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+
+                    const SizedBox(height: 24),
+
+                    // Relay Control Section
+                    const Text(
+                      'Relay Controls',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Master Controls
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isRelayLoading
+                                ? null
+                                : () => _setAllRelays(true),
+                            icon: const Icon(Icons.power, size: 18),
+                            label: const Text(
+                              'All ON',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    )
-                  else
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      children: [
-                        _buildSensorCard(
-                          'Temperature',
-                          _sensorData?['temperature']?.toString() ?? 'No Data',
-                          Icons.thermostat,
-                          Colors.red,
                         ),
-                        _buildSensorCard(
-                          'Humidity',
-                          '${_sensorData?['humidity']?.toString() ?? 'No Data'}%',
-                          Icons.water_drop,
-                          Colors.blue,
-                        ),
-                        _buildSensorCard(
-                          'Light Status',
-                          _sensorData?['lightLevel'] == 1 ? 'Day' : 'Night',
-                          _sensorData?['lightLevel'] == 1
-                              ? Icons.wb_sunny
-                              : Icons.nightlight,
-                          _sensorData?['lightLevel'] == 1
-                              ? Colors.yellow
-                              : Colors.indigo,
-                        ),
-                        _buildSensorCard(
-                          'Flame Status',
-                          _sensorData?['flameStatus'] == 1
-                              ? 'Flame Detected'
-                              : 'No Flame',
-                          Icons.local_fire_department,
-                          _sensorData?['flameStatus'] == 1
-                              ? Colors.red
-                              : Colors.green,
-                        ),
-                        _buildSensorCard(
-                          'System Status',
-                          _hasSensorError ? 'Offline' : 'Online',
-                          _hasSensorError ? Icons.error : Icons.check_circle,
-                          _hasSensorError ? Colors.red : Colors.green,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isRelayLoading
+                                ? null
+                                : () => _setAllRelays(false),
+                            icon: const Icon(Icons.power_off, size: 18),
+                            label: const Text(
+                              'All OFF',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
 
-                  const SizedBox(height: 32),
+                    const SizedBox(height: 16),
 
-                  // Relay Control Section
-                  const Text(
-                    'Relay Controls',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
+                    // Individual Relay Controls
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        int crossAxisCount = 2;
+                        double childAspectRatio = 1.1;
 
-                  // Master Controls
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isRelayLoading
-                              ? null
-                              : () => _setAllRelays(true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: const Text('Turn All ON'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isRelayLoading
-                              ? null
-                              : () => _setAllRelays(false),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: const Text('Turn All OFF'),
-                        ),
-                      ),
-                    ],
-                  ),
+                        if (constraints.maxWidth > 600) {
+                          crossAxisCount = 4;
+                          childAspectRatio = 0.8;
+                        }
 
-                  const SizedBox(height: 24),
+                        return GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: crossAxisCount,
+                          childAspectRatio: childAspectRatio,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          children: [
+                            _buildRelayCard(1),
+                            _buildRelayCard(2),
+                            _buildRelayCard(3),
+                            _buildRelayCard(4),
+                          ],
+                        );
+                      },
+                    ),
 
-                  // Individual Relay Controls
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    children: [
-                      _buildRelayCard(1),
-                      _buildRelayCard(2),
-                      _buildRelayCard(3),
-                      _buildRelayCard(4),
-                    ],
-                  ),
+                    const SizedBox(height: 24),
 
-                  const SizedBox(height: 32),
-
-                  // About Section
-                  const Text(
-                    'About',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Lab System IoT Management',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'This system manages lab equipment through IoT technology. '
-                            'It monitors temperature, humidity, and light levels while '
-                            'providing remote control of relays for equipment management.',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Features:',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text('• Real-time sensor monitoring'),
-                          const Text('• Remote relay control'),
-                          const Text('• Prayer time automation'),
-                          const Text('• Mobile and web access'),
-                        ],
+                    // About Section
+                    const Text(
+                      'About',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Lab System IoT Management',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'This system manages lab equipment through IoT technology. '
+                              'It monitors temperature, humidity, and light levels while '
+                              'providing remote control of relays for equipment management.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Features:',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              '• Real-time sensor monitoring',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            const Text(
+                              '• Remote relay control',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            const Text(
+                              '• Prayer time automation',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            const Text(
+                              '• Mobile and web access',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Add some bottom padding for better scrolling
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
     );

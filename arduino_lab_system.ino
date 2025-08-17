@@ -11,8 +11,8 @@ const char* ssid = "Tahqiiq System";
 const char* password = "614444259";
 
 // Backend server details
-const char* backendUrl = "http://192.168.8.61:3000"; // Update with your backend IP
-const int backendPort = 3000;
+const char* backendUrl = "https://labsystjust.up.railway.app"; // Same as Flutter app
+const int backendPort = 443; // HTTPS port
 
 // Pin definitions
 #define comp1 27
@@ -110,6 +110,25 @@ void setupWiFi() {
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  
+  // Test HTTPS connection
+  Serial.println("Testing HTTPS connection to backend...");
+  HTTPClient http;
+  String testUrl = String(backendUrl) + "/esp32/relays";
+  http.begin(testUrl);
+  http.setInsecure();
+  
+  int httpResponseCode = http.GET();
+  if (httpResponseCode > 0) {
+    Serial.println("HTTPS connection successful!");
+    Serial.print("Response code: ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.println("HTTPS connection failed!");
+    Serial.print("Error: ");
+    Serial.println(http.errorToString(httpResponseCode));
+  }
+  http.end();
 }
 
 // Send sensor data to backend
@@ -135,6 +154,8 @@ void sendSensorData() {
   String url = String(backendUrl) + "/esp32/sensors";
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
+  // For HTTPS, we need to skip certificate verification in development
+  http.setInsecure();
 
   // Create JSON payload
   String jsonPayload = "{\"temperature\":" + String(t, 1) + 
@@ -165,6 +186,8 @@ void getRelayStates() {
   HTTPClient http;
   String url = String(backendUrl) + "/esp32/relays";
   http.begin(url);
+  // For HTTPS, we need to skip certificate verification in development
+  http.setInsecure();
   
   int httpResponseCode = http.GET();
   
@@ -235,6 +258,8 @@ void getPrayerTimes() {
   HTTPClient http;
   String url = String(backendUrl) + "/esp32/prayer-times";
   http.begin(url);
+  // For HTTPS, we need to skip certificate verification in development
+  http.setInsecure();
   
   int httpResponseCode = http.GET();
   
@@ -283,6 +308,8 @@ void getWorkingHours() {
   HTTPClient http;
   String url = String(backendUrl) + "/esp32/working-hours";
   http.begin(url);
+  // For HTTPS, we need to skip certificate verification in development
+  http.setInsecure();
   
   int httpResponseCode = http.GET();
   
